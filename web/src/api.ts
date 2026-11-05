@@ -15,13 +15,37 @@ function isGroup(v: unknown): v is OfferGroup {
 }
 
 function isBookPrices(v: unknown): v is BookPrices {
-  return isObject(v) && isGroup(v.fbu) && isGroup(v.fbn)
+  return (
+    isObject(v) &&
+    (v.title === null || typeof v.title === 'string') &&
+    (v.source === 'live' || v.source === 'cache') &&
+    (v.asOf === null || typeof v.asOf === 'string') &&
+    typeof v.totalOffers === 'number' &&
+    isGroup(v.fbu) &&
+    isGroup(v.fbn) &&
+    isGroup(v.mu) &&
+    isGroup(v.mn)
+  )
 }
 
-export async function fetchBookPrices(isbn: string, signal?: AbortSignal): Promise<BookPrices> {
+export function fetchBookPrices(isbn: string, signal?: AbortSignal): Promise<BookPrices> {
+  return getPrices(`/api/book/${encodeURIComponent(isbn)}`, signal)
+}
+
+/** Instant saved snapshot, or null when none is available. */
+export async function fetchCachedPrices(isbn: string, signal?: AbortSignal): Promise<BookPrices | null> {
+  try {
+    return await getPrices(`/api/book/${encodeURIComponent(isbn)}/cached`, signal)
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err
+    return null
+  }
+}
+
+async function getPrices(url: string, signal?: AbortSignal): Promise<BookPrices> {
   let res: Response
   try {
-    res = await fetch(`/api/book/${encodeURIComponent(isbn)}`, { signal })
+    res = await fetch(url, { signal })
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err
     throw new Error('Network error. Check your connection and try again.')

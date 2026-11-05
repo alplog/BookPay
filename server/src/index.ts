@@ -1,6 +1,6 @@
 import express from "express";
 import { normalizeIsbn } from "./isbn.js";
-import { fetchBookPrices, LogimuError } from "./logimu.js";
+import { fetchBookPrices, fetchCachedBookPrices, LogimuError } from "./logimu.js";
 import type { ApiErrorBody, BookPricesResponse } from "./types.js";
 
 try {
@@ -18,6 +18,20 @@ if (!apiKey) {
 const port = Number(process.env.PORT ?? 3001);
 const app = express();
 app.disable("x-powered-by");
+
+app.get("/api/book/:isbn/cached", async (req, res: express.Response<BookPricesResponse | ApiErrorBody>) => {
+  const isbn = normalizeIsbn(req.params.isbn);
+  if (!isbn) {
+    res.status(400).json({ error: "Invalid ISBN. Enter a valid ISBN-10 or ISBN-13." });
+    return;
+  }
+  const cached = await fetchCachedBookPrices(isbn, apiKey);
+  if (!cached) {
+    res.status(404).json({ error: "No saved data for this ISBN." });
+    return;
+  }
+  res.json(cached);
+});
 
 app.get("/api/book/:isbn", async (req, res: express.Response<BookPricesResponse | ApiErrorBody>) => {
   const isbn = normalizeIsbn(req.params.isbn);

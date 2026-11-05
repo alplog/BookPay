@@ -41,6 +41,8 @@ cd web && npm run build    # static files in web/dist; serve them behind a proxy
 ## Notes
 
 - Logimu returns prices as USD decimals (e.g. `24.99`). Total = `price` + `shipping_cost` (when > 0).
-- FBN = `fulfillment === "FBA"` and `condition_class === "new"`; FBU = FBA with `condition_class` `used` or `used_*`.
-- Logimu fetches live from Amazon (typically 4–12 s per lookup), and each lookup with offers costs API credits.
+- Amazon-fulfilled means `fulfillment` is `FBA` (third party) or `AMZ` (sold by Amazon itself). FBN = Amazon-fulfilled with `condition_class === "new"`; FBU = Amazon-fulfilled with `condition_class` `used` or `used_*`.
+- Logimu fetches live from Amazon (4–30 s per lookup, longer for books with many offers), and each lookup with offers costs API credits.
+- To feel instant, the UI first shows a saved snapshot from Logimu's warehouse (`GET /api/book/:isbn/cached`, ~0.2 s, dimmed and labelled with its date; may be older than live), then replaces it with the live result. Both calls are billed. The server also keeps live results for 5 minutes, so repeat lookups of the same ISBN are instant and free.
+- ASR is the overall Amazon sales rank when Logimu has one, otherwise the median of the root "Books" rank over the last 90 days (`bsr_history`). Sub-category ranks (`bsr_leaf`) are never used, since they are far smaller than the Books rank. It shows `—` when there is no recent reading.
 - `LOGIMU_API_KEY` lives only in `server/.env`; it is never sent to the browser.

@@ -1,0 +1,8 @@
+{
+  "name": "BookPay",
+  "private": true,
+  "scripts": {
+    "dev": "./start.sh",
+    "build": "npm --prefix server run build && npm --prefix web run build"
+  }
+}

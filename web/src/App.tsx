@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { AlertCircle, Loader2, Search } from 'lucide-react'
-import { fetchBookPrices } from './api'
-import { PriceCard } from './components/PriceCard'
+import { fetchBookPrices, fetchCachedPrices } from './api'
+import { ResultView } from './components/ResultView'
 import type { BookPrices } from './types'
 
 export default function App() {
@@ -23,10 +23,22 @@ export default function App() {
     setLoading(true)
     setError(null)
     setData(null)
+
+    let liveDone = false
+    fetchCachedPrices(value, controller.signal)
+      .then((cached) => {
+        if (cached && !liveDone && abortRef.current === controller) setData(cached)
+      })
+      .catch(() => {})
+
     try {
-      setData(await fetchBookPrices(value, controller.signal))
+      const live = await fetchBookPrices(value, controller.signal)
+      liveDone = true
+      setData(live)
     } catch (err) {
+      liveDone = true
       if (err instanceof DOMException && err.name === 'AbortError') return
+      setData(null)
       setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
       if (abortRef.current === controller) setLoading(false)
@@ -34,9 +46,9 @@ export default function App() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center px-4 py-16 sm:py-24">
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center px-4 py-12 sm:py-20">
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Book Price Lookup</h1>
-      <p className="mt-2 text-gray-500">Check live Amazon FBA book prices.</p>
+      <p className="mt-2 text-gray-500">Check live Amazon book prices.</p>
 
       <form onSubmit={onSubmit} className="mt-8 flex w-full max-w-xl flex-col gap-3 sm:flex-row">
         <input
@@ -62,7 +74,11 @@ export default function App() {
       {loading && (
         <div className="mt-12 flex items-center gap-2 text-gray-500" role="status">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Fetching live prices… this can take up to 15 seconds.</span>
+          <span>
+            {data?.source === 'cache'
+              ? `Showing saved prices${data.asOf ? ` from ${new Date(data.asOf).toLocaleString()}` : ''}. Updating with live prices…`
+              : 'Fetching live prices… this can take up to 30 seconds.'}
+          </span>
         </div>
       )}
 
@@ -74,9 +90,8 @@ export default function App() {
       )}
 
       {data && (
-        <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
-          <PriceCard title="FBA Used (FBU)" group={data.fbu} />
-          <PriceCard title="FBA New (FBN)" group={data.fbn} />
+        <div className={`${loading ? 'mt-6' : 'mt-10'} w-full ${data.source === 'cache' ? 'opacity-60' : ''}`}>
+          <ResultView key={data.isbn} data={data} />
         </div>
       )}
     </main>
